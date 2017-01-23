@@ -40,6 +40,16 @@ class TrellusConsole(InteractiveConsole):
 		"""Add trellus to the Python interactive console"""
 		self.server = server
 
+		# Add trellus to __builtins__
+		builtins = __builtins__.__dict__
+		builtins['publish'] = self.server.publish
+		builtins['fetch'] = self.server.fetch
+
+		# Add __builtins__ to local variables
+		if locals is None:
+			locals = {}
+		locals.setdefault('__builtins__', builtins)
+
 		super().__init__(locals=locals, filename=filename)
 
 	def interact(self, *args, **kwargs):
@@ -50,21 +60,6 @@ class TrellusConsole(InteractiveConsole):
 			pass
 
 		super().interact(*args, **kwargs)
-
-	def push(self, line):
-		"""Intercept publish commands"""
-		if line == 'publish':
-			# Publish objects
-			for name, object in self.locals.items():
-				if not name.startswith('_'):
-					hash = self.server.publish(object, name=name)
-					print(hash)
-
-			# No more input for this line
-			self.resetbuffer()
-			return False
-		else:
-			return super().push(line)
 
 	def runcode(self, code):
 		"""Intercept NameErrors, and try and find objects with that name from the trellus server"""
