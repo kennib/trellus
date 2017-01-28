@@ -1,60 +1,102 @@
-import re
-from code import InteractiveConsole
+import atexit
+import curses
+from library import *
 
-class TrellusConsole(InteractiveConsole):
-	def __init__(self, server, locals=None, filename="<console>"):
-		"""Add trellus to the Python interactive console"""
+class TrellusConsole():
+	def __init__(self, server, symbol_table=None):
 		self.server = server
 
-		# Add trellus to __builtins__
-		builtins = __builtins__.__dict__ if hasattr(__builtins__, '__dict__') else __builtins__
-		builtins['publish'] = self.server.publish
-		builtins['fetch'] = self.server.fetch
+		# Initialise symbol table
+		self.symbol_table = symbol_table if symbol_table else {}
 
-		# Add __builtins__ to local variables
-		if locals is None:
-			locals = {}
-		locals.setdefault('__builtins__', builtins)
+		# Add builtin symbols
+		builtin_symbol_table = library(self)
+		self.symbol_table.update(builtin_symbol_table)
 
-		super().__init__(locals=locals, filename=filename)
+		# Start off with a generic symbol
+		self.symbol = SymbolList([TrellusSymbol('symbol')])
 
-	def interact(self, *args, **kwargs):
-		"""Add eadline history functionality to the console"""
+	def interact(self):
+		# Create curses screen
+		self.screen = curses.initscr()
+		# Take keyboard input
+		curses.noecho()
+		curses.cbreak()
+		self.screen.keypad(True)
 		try:
-			import readline
-		except ImportError:
-			pass
+			self.run()
+		except Exception as error:
+			self.close()
+			raise error
+		except KeyboardInterrupt as error:
+			self.close()
+			raise error
+		# Clean up when done
+		atexit.register(self.close)
 
-		super().interact(*args, **kwargs)
+	def run(self):
+		while True:
+			self.screen.clear()
 
-	def runcode(self, code):
-		"""Intercept NameErrors, and try and find objects with that name from the trellus server"""
+			# Output current symbol
+			self.screen.addstr(1, 2, str(self.symbol))
 
-		retry = False
-		try:
-			exec(code, self.locals)
-		except NameError as e:
-			show_error = False
+			# Evaluate the symbol
+			choice = self.screen.getch()
+			self.symbol = self.symbol.eval(self.symbol_table)
+			self.screen.refresh()
 
-			# Get the missing name
-			name = re.match("name '(\w+)' is not defined", str(e)).group(1)
-			try:
-				# Get the object for the missing name
-				object = self.server.fetch(name)
-				# Try again with the new object
-				self.locals[name] = object
-				retry = True
-			except KeyError:
-				show_error = True
+	def get_symbol(self, *args):
+		self.screen.clear()
 
-			if show_error:
-				# Give up and show the NameError
-				self.showtraceback()
-		except SystemExit:
-			raise
-		except:
-			self.showtraceback()
+		# Output current symbol
+		self.screen.addstr(1, 2, str(self.symbol))
 
-		if retry:
-			# Retry the code
-			self.runcode(code)
+		# Output directive
+		self.screen.addstr(3, 2, 'Choose a symbol')
+
+		# Output options
+		symbols = [TrellusSymbol(label) for label in self.symbol_table.keys()]
+		for index, symbol in enumerate(symbols):
+			self.screen.addstr(4+index, 2, str(index) + " - " + str(symbol))
+
+		# Get input
+		self.screen.refresh()
+		choice = self.screen.getch()
+
+		# Process input
+		if choice in [ord(str(i)) for i in range(10)]:
+			index = int(chr(choice))
+			if index < len(symbols):
+				return SymbolList([
+					TrellusSymbol('apply'),
+					symbols[index],
+					SymbolList([TrellusSymbol('parameters'), symbols[index]]),
+				])
+
+		# If no choice, then return the original symbol
+		return self.symbol
+
+	def get_string(self, *args):
+		self.screen.clear()
+
+		# Output current symbol
+		self.screen.addstr(1, 2, str(self.symbol))
+
+		# Output directive
+		self.screen.addstr(3, 2, 'Enter a string')
+
+		# Get input
+		self.screen.refresh()
+		curses.echo()
+		string = self.screen.getstr(4, 2).decode("utf-8")
+		curses.noecho()
+
+		return TrellusSymbol(repr(string))
+
+	def close(self):
+		# Return to normal terminal
+		self.screen.keypad(False)
+		curses.nocbreak()
+		curses.echo()
+		curses.endwin()

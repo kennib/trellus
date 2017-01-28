@@ -4,6 +4,7 @@ import dill
 from kad import DHT
 
 from storage import *
+from ast import *
 
 class TrellusServer():
 	def __init__(self, host='localhost', port=6161, seeds=[], storage_filename=None):
@@ -43,10 +44,11 @@ class TrellusServer():
 		if name:
 			self.dht[name] = object_string
 
-		return hash
+		return TrellusSymbol(hash)
 	
-	def fetch(self, name):
-		"""Retrieve the name from trellus"""
+	def fetch(self, symbol):
+		"""Retrieve the symbol from trellus"""
+		name = symbol.symbol
 		if self.storage and name in self.storage:
 			# Fetch the object from storage
 			object = self.storage[name]
