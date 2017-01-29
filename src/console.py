@@ -38,7 +38,7 @@ class TrellusConsole():
 		self.init_windows()
 		while True:
 			# Update display
-			self.display_symbol()
+			self.display()
 
 			# Clear choices display
 			self.choices_window.clear()
@@ -56,7 +56,7 @@ class TrellusConsole():
 		self.choices_window = curses.newwin(curses.LINES - 1 - self.window_height, curses.COLS - 1, self.window_height, 0)
 		self.screen.refresh()
 
-	def display_symbol(self, controls=True):
+	def display(self, controls=True):
 		# Clear window
 		self.display_window.clear()
 
@@ -68,15 +68,33 @@ class TrellusConsole():
 		if controls:
 			self.display_window.addstr(self.window_height - 1, 2, ' Enter - Evaluate ')
 
-		# Output current symbol
-		self.display_window.addstr(2, 3, str(self.symbol))
+		# Display the symbol
+		self.display_symbol(self.symbol, row=2, column=3, window=self.display_window)
 
 		# Draw window
 		self.display_window.refresh()
 
+	def display_symbol(self, symbol, row=None, column=None, window=None):
+		row = row if row is not None else 0
+		column = column if column is not None else 0
+		window = window if window is not None else self.screen
+
+		# Output symbol
+		if type(symbol) is SymbolList:
+			# Output symbol list
+			self.display_window.addstr(2, column, '(')
+			for symbol in symbol.symbols:
+				row, column = self.display_symbol(symbol, row, column+1, window)
+			self.display_window.addstr(2, column, ')')
+			return row, column+1
+		elif type(symbol) is TrellusSymbol:
+			# Output singular symbol
+			self.display_window.addstr(2, column, symbol.symbol)
+			return row, column + len(symbol.symbol)
+
 	def get_symbol(self, *args):
 		# Update symbol display
-		self.display_symbol(controls=False)
+		self.display(controls=False)
 
 		# Clear choices display
 		self.choices_window.clear()
@@ -108,7 +126,7 @@ class TrellusConsole():
 
 	def get_string(self, *args):
 		# Update symbol display
-		self.display_symbol(controls=False)
+		self.display(controls=False)
 
 		# Clear choices display
 		self.choices_window.clear()
