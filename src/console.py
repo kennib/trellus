@@ -45,23 +45,28 @@ class TrellusConsole():
 			self.choices_window.refresh()
 
 			# Evaluate the symbol
-			choice = self.screen.getch()
-			self.symbol = self.symbol.eval(self.symbol_table)
+			choice = self.screen.getkey()
+			if choice == '\n':
+				self.symbol = self.symbol.eval(self.symbol_table)
 
 	def init_windows(self):
 		# Create two windows, one for displaying values and one for displaying choices
-		window_height = 8
-		self.display_window = curses.newwin(window_height, curses.COLS - 1, 0, 0)
-		self.choices_window = curses.newwin(curses.LINES - 1 - window_height, curses.COLS - 1, window_height, 0)
+		self.window_height = 8
+		self.display_window = curses.newwin(self.window_height, curses.COLS - 1, 0, 0)
+		self.choices_window = curses.newwin(curses.LINES - 1 - self.window_height, curses.COLS - 1, self.window_height, 0)
 		self.screen.refresh()
 
-	def display_symbol(self):
+	def display_symbol(self, controls=True):
 		# Clear window
 		self.display_window.clear()
 
 		# Window dressing
 		self.display_window.border(0)
 		self.display_window.addstr(0, 2, ' Current Symbol ')
+
+		# Display window controls
+		if controls:
+			self.display_window.addstr(self.window_height - 1, 2, ' Enter - Evaluate ')
 
 		# Output current symbol
 		self.display_window.addstr(2, 3, str(self.symbol))
@@ -71,7 +76,7 @@ class TrellusConsole():
 
 	def get_symbol(self, *args):
 		# Update symbol display
-		self.display_symbol()
+		self.display_symbol(controls=False)
 
 		# Clear choices display
 		self.choices_window.clear()
@@ -103,7 +108,7 @@ class TrellusConsole():
 
 	def get_string(self, *args):
 		# Update symbol display
-		self.display_symbol()
+		self.display_symbol(controls=False)
 
 		# Clear choices display
 		self.choices_window.clear()
