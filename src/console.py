@@ -35,34 +35,58 @@ class TrellusConsole():
 		atexit.register(self.close)
 
 	def run(self):
+		self.init_windows()
 		while True:
-			self.screen.clear()
+			# Update display
+			self.display_symbol()
 
-			# Output current symbol
-			self.screen.addstr(1, 2, str(self.symbol))
+			# Clear choices display
+			self.choices_window.clear()
+			self.choices_window.refresh()
 
 			# Evaluate the symbol
 			choice = self.screen.getch()
 			self.symbol = self.symbol.eval(self.symbol_table)
-			self.screen.refresh()
 
-	def get_symbol(self, *args):
-		self.screen.clear()
+	def init_windows(self):
+		# Create two windows, one for displaying values and one for displaying choices
+		window_height = 8
+		self.display_window = curses.newwin(window_height, curses.COLS - 1, 0, 0)
+		self.choices_window = curses.newwin(curses.LINES - 1 - window_height, curses.COLS - 1, window_height, 0)
+		self.screen.refresh()
+
+	def display_symbol(self):
+		# Clear window
+		self.display_window.clear()
+
+		# Window dressing
+		self.display_window.border(0)
+		self.display_window.addstr(0, 2, ' Current Symbol ')
 
 		# Output current symbol
-		self.screen.addstr(1, 2, str(self.symbol))
+		self.display_window.addstr(2, 3, str(self.symbol))
+
+		# Draw window
+		self.display_window.refresh()
+
+	def get_symbol(self, *args):
+		# Update symbol display
+		self.display_symbol()
+
+		# Clear choices display
+		self.choices_window.clear()
 
 		# Output directive
-		self.screen.addstr(3, 2, 'Choose a symbol')
+		self.choices_window.addstr(1, 2, 'Choose a symbol')
 
 		# Output options
 		symbols = [TrellusSymbol(label) for label in self.symbol_table.keys()]
 		for index, symbol in enumerate(symbols):
-			self.screen.addstr(4+index, 2, str(index) + " - " + str(symbol))
+			self.choices_window.addstr(2+index, 2, str(index) + " - " + str(symbol))
 
 		# Get input
-		self.screen.refresh()
-		choice = self.screen.getch()
+		self.choices_window.refresh()
+		choice = self.choices_window.getch()
 
 		# Process input
 		if choice in [ord(str(i)) for i in range(10)]:
@@ -78,18 +102,19 @@ class TrellusConsole():
 		return self.symbol
 
 	def get_string(self, *args):
-		self.screen.clear()
+		# Update symbol display
+		self.display_symbol()
 
-		# Output current symbol
-		self.screen.addstr(1, 2, str(self.symbol))
+		# Clear choices display
+		self.choices_window.clear()
 
 		# Output directive
-		self.screen.addstr(3, 2, 'Enter a string')
+		self.choices_window.addstr(1, 2, 'Enter a string')
 
 		# Get input
-		self.screen.refresh()
+		self.choices_window.refresh()
 		curses.echo()
-		string = self.screen.getstr(4, 2).decode("utf-8")
+		string = self.choices_window.getstr(2, 2).decode("utf-8")
 		curses.noecho()
 
 		return TrellusSymbol(repr(string))
