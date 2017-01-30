@@ -16,6 +16,8 @@ class TrellusConsole():
 		# Start off with a generic symbol
 		self.symbol = SymbolList([TrellusSymbol('symbol')])
 		self.selection = self.symbol
+		self.selection_parents = []
+		self.selection_index = []
 
 	def interact(self):
 		# Create curses screen
@@ -45,11 +47,47 @@ class TrellusConsole():
 			self.choices_window.clear()
 			self.choices_window.refresh()
 
-			# Evaluate the symbol
-			choice = self.screen.getkey()
-			if choice == '\n':
-				self.symbol = self.symbol.eval(self.symbol_table)
-				self.selection = self.symbol
+			# Listen for controls
+			choice = self.screen.getch()
+			if choice == curses.KEY_ENTER or choice == ord('\n'):
+				# Evaluate the symbol
+				self.selection = self.selection.eval(self.symbol_table)
+
+				# Replace symbol with its evaluation
+				if len(self.selection_parents) > 0:
+					self.selection_parents[-1].symbols[self.selection_index[-1]] = self.selection
+				else:
+					self.symbol = self.selection
+
+			elif choice == curses.KEY_DOWN:
+				# Select first child symbol
+				if type(self.selection) == SymbolList and len(self.selection.symbols) > 0:
+					self.selection_parents.append(self.selection)
+					self.selection_index.append(0)
+					self.selection = self.selection_parents[-1].symbols[self.selection_index[-1]]
+			elif choice == curses.KEY_UP:
+				# Select parent symbol
+				if len(self.selection_parents) > 0:
+					self.selection = self.selection_parents.pop()
+			elif choice == curses.KEY_LEFT or choice == curses.KEY_RIGHT:
+				# Select sibling symbol
+				if len(self.selection_parents) > 0:
+					# Which direction?
+					if choice == curses.KEY_LEFT:
+						index = self.selection_index[-1] - 1
+					elif choice == curses.KEY_RIGHT:
+						index = self.selection_index[-1] + 1
+
+					# Keep inside bounds
+					if index < 0:
+						self.selection_index.append(0)
+					elif index >= len(self.selection_parents[-1].symbols):
+						self.selection_index.append(len(self.selection_parents[-1].symbols) - 1)
+					else:
+						self.selection_index.append(index)
+
+					# Change selection
+					self.selection = self.selection_parents[-1].symbols[self.selection_index[-1]]
 
 	def init_windows(self):
 		# Create two windows, one for displaying values and one for displaying choices
@@ -68,7 +106,11 @@ class TrellusConsole():
 
 		# Display window controls
 		if controls:
-			self.display_window.addstr(self.window_height - 1, 2, ' Enter - Evaluate ')
+			options = ['(Enter) Evaluate', '(↓) Selected first child symbol', '(←/→) Select sibling symbol', '(↑) Select parent symbol']
+			column = 2
+			for option in options:
+				self.display_window.addstr(self.window_height - 1, column, option)
+				column += len(option) + 4
 
 		# Display the symbol
 		self.display_symbol(self.symbol, row=2, column=3, window=self.display_window, selection=self.selection)
