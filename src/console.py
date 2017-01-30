@@ -15,6 +15,7 @@ class TrellusConsole():
 
 		# Start off with a generic symbol
 		self.symbol = SymbolList([TrellusSymbol('symbol')])
+		self.selection = self.symbol
 
 	def interact(self):
 		# Create curses screen
@@ -48,6 +49,7 @@ class TrellusConsole():
 			choice = self.screen.getkey()
 			if choice == '\n':
 				self.symbol = self.symbol.eval(self.symbol_table)
+				self.selection = self.symbol
 
 	def init_windows(self):
 		# Create two windows, one for displaying values and one for displaying choices
@@ -69,27 +71,33 @@ class TrellusConsole():
 			self.display_window.addstr(self.window_height - 1, 2, ' Enter - Evaluate ')
 
 		# Display the symbol
-		self.display_symbol(self.symbol, row=2, column=3, window=self.display_window)
+		self.display_symbol(self.symbol, row=2, column=3, window=self.display_window, selection=self.selection)
 
 		# Draw window
 		self.display_window.refresh()
 
-	def display_symbol(self, symbol, row=None, column=None, window=None):
+	def display_symbol(self, symbol, row=None, column=None, window=None, selection=None, selected=False):
 		row = row if row is not None else 0
 		column = column if column is not None else 0
 		window = window if window is not None else self.screen
 
+		# Check if symbol should be displayed as selected
+		selected = symbol == selection or selected
+
+		# Calculate color of text
+		color = curses.A_STANDOUT if selected else 0
+
 		# Output symbol
 		if type(symbol) is SymbolList:
 			# Output symbol list
-			self.display_window.addstr(2, column, '(')
+			self.display_window.addstr(2, column, '(', color)
 			for symbol in symbol.symbols:
-				row, column = self.display_symbol(symbol, row, column+1, window)
-			self.display_window.addstr(2, column, ')')
+				row, column = self.display_symbol(symbol, row, column+1, window, selection, selected)
+			self.display_window.addstr(2, column, ')', color)
 			return row, column+1
 		elif type(symbol) is TrellusSymbol:
 			# Output singular symbol
-			self.display_window.addstr(2, column, symbol.symbol)
+			self.display_window.addstr(2, column, symbol.symbol, color)
 			return row, column + len(symbol.symbol)
 
 	def get_symbol(self, *args):
