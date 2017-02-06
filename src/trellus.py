@@ -32,5 +32,5 @@ if __name__ == '__main__':
 	# Create a trellus server
 	server = TrellusServer(**server_args)
 	# Interact with trellus
-	console = TrellusConsole(server, symbol_table=dict(server.storage))
+	console = TrellusConsole(server, symbol_table=dict(server.storage), subtype_table=subtype_table)
 	console.interact()

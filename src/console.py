@@ -124,7 +124,7 @@ class TrellusConsole():
 		window = window if window is not None else self.screen
 
 		# Check if symbol should be displayed as selected
-		selected = symbol == selection or selected
+		selected = symbol is selection or selected
 
 		# Calculate color of text
 		color = curses.A_STANDOUT if selected else 0

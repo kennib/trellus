@@ -42,6 +42,12 @@ class TrellusSymbol():
 		except:
 			return self
 
+	def __eq__(self, other):
+		if type(other) == TrellusSymbol:
+			return self.symbol == other.symbol
+		else:
+			return False
+
 	def __repr__(self):
 		return repr(self.symbol)
 
