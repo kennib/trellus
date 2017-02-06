@@ -3,11 +3,12 @@ import curses
 from library import *
 
 class TrellusConsole():
-	def __init__(self, server, symbol_table=None):
+	def __init__(self, server, symbol_table=None, subtype_table=None):
 		self.server = server
 
-		# Initialise symbol table
+		# Initialise symbol tables
 		self.symbol_table = symbol_table if symbol_table else {}
+		self.subtype_table = subtype_table if subtype_table else {}
 
 		# Add builtin symbols
 		builtin_symbol_table = library(self)
@@ -173,6 +174,34 @@ class TrellusConsole():
 
 		# If no choice, then return the original symbol
 		return self.symbol
+
+	def get_subtype(self, symbol):
+		# Update symbol display
+		self.display(controls=False)
+
+		# Clear choices display
+		self.choices_window.clear()
+
+		# Output directive
+		self.choices_window.addstr(1, 2, 'Choose a symbol')
+
+		# Output options
+		symbols = self.subtype_table.get(symbol, SymbolList([]))
+		for index, subsymbol in enumerate(symbols.symbols):
+			self.choices_window.addstr(2+index, 2, str(index) + " - " + str(subsymbol))
+
+		# Get input
+		self.choices_window.refresh()
+		choice = self.choices_window.getch()
+
+		# Process input
+		if choice in [ord(str(i)) for i in range(10)]:
+			index = int(chr(choice))
+			if index < len(symbols.symbols):
+				return symbols.symbols[index]
+
+		# If no choice, then return the original symbol
+		return symbol
 
 	def get_string(self, *args):
 		# Update symbol display

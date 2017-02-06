@@ -7,6 +7,7 @@ def library(console=None):
 		symbol_table['eval'] = lambda symbol: symbol.eval(console.symbol_table)
 		symbol_table['symbol'] = console.get_symbol
 		symbol_table['string'] = console.get_string
+		symbol_table['boolean'] = lambda: console.get_subtype('boolean')
 
 	if console.server:
 		symbol_table['publish'] = console.server.publish
@@ -28,6 +29,7 @@ parameter_table = {
 	'eval': SymbolList([TrellusSymbol('symbol')]),
 	'symbol': SymbolList(),
 	'string': SymbolList(),
+	'boolean': SymbolList(),
 	'publish': SymbolList([TrellusSymbol('symbol')]),
 	'fetch': SymbolList([TrellusSymbol('symbol')]),
 	'subtype': SymbolList([TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
