@@ -1,43 +1,64 @@
+from types import FunctionType as function
+from copy import deepcopy
+
 from ast import *
 
 def library(console=None):
-	symbol_table = {}
+	symbol_table = {
+		'eval': SymbolList([TrellusSymbol('eval'), TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
+		'evals': SymbolList([TrellusSymbol('evals'), TrellusSymbol('symbol')]),
+		'subtypes': SymbolList([TrellusSymbol('subtypes'), TrellusSymbol('symbol')]),
+		'publish': SymbolList([TrellusSymbol('publish'), TrellusSymbol('symbol')]),
+		'fetch': SymbolList([TrellusSymbol('fetch'), TrellusSymbol('symbol')]),
+		'subtype': SymbolList([TrellusSymbol('subtype'), TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
+	}
 
 	if console:
-		symbol_table['eval'] = lambda symbol: symbol.eval(console.symbol_table)
-		symbol_table['symbol'] = console.get_symbol
-		symbol_table['string'] = console.get_string
-		symbol_table['boolean'] = lambda: console.get_subtype('boolean')
+		symbol_table[symbol_table['evals']] = lambda symbol: evals(console.symbol_table, symbol)
+		symbol_table[symbol_table['subtypes']] = lambda symbol: subtypes(console.symbol_table, symbol)
+		symbol_table[TrellusSymbol('symbol')] = lambda symbol: console.get_symbol(symbol)
+		symbol_table[TrellusSymbol('boolean')] = lambda symbol: console.get_symbol(symbol)
+		symbol_table[TrellusSymbol('string')] = lambda symbol: console.get_string(symbol)
 
 	if console.server:
-		symbol_table['publish'] = console.server.publish
-		symbol_table['fetch'] = console.server.fetch
+		symbol_table[symbol_table['publish']] = lambda symbol: console.server.publish(symbol)
+		symbol_table[symbol_table['fetch']] = lambda symbol: console.server.fetch(symbol)
 	
-	symbol_table['apply'] = apply
-	symbol_table['parameters'] = parameters
-	symbol_table['subtype'] = subtype
+	if console is None:
+		symbol_table[symbol_table['evals']] = lambda symbol: (symbol_table, symbol)
+		symbol_table[symbol_table['subtypes']] = lambda symbol: subtypes(symbol_table, symbol)
+
+	symbol_table[symbol_table['eval']] = lambda definition, *symbols: eval(definition, *symbols)
+	symbol_table[symbol_table['subtype']] = lambda symbol, type_symbol: subtype(symbol, type_symbol)
 
 	return symbol_table
 
-def apply(symbol, params):
-	if hasattr(params, 'symbols'):
-		return SymbolList([symbol]+params.symbols)
+def eval(definition, *symbols):
+	if type(definition) == function:
+		return definition(*symbols)
 	else:
-		return SymbolList([symbol, params])
+		return definition
 
-parameter_table = {
-	'eval': SymbolList([TrellusSymbol('symbol')]),
-	'symbol': SymbolList(),
-	'string': SymbolList(),
-	'boolean': SymbolList(),
-	'publish': SymbolList([TrellusSymbol('symbol')]),
-	'fetch': SymbolList([TrellusSymbol('symbol')]),
-	'subtype': SymbolList([TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
-	'apply': SymbolList([TrellusSymbol('symbol'), TrellusSymbol('symbol')])
-}
+def evals(symbol_table, symbol):
+	symbols = [
+		(deepcopy(type_symbol), deepcopy(definition))
+		for type_symbol, definition in symbol_table.items()
+		if subtype(symbol, type_symbol) == TrellusSymbol('true')
+	]
+	return SymbolList([TrellusSymbol('list')]+symbols)
 
-def parameters(symbol):
-	return parameter_table.get(str(symbol), SymbolList([]))
+def subtypes(symbol_table, symbol):
+	sub_symbols = [
+		deepcopy(sub_symbol)
+		for sub_symbol in symbol_table.keys()
+		if (type(sub_symbol) == TrellusSymbol or type(sub_symbol) == SymbolList)
+		and subtype(sub_symbol, symbol) == TrellusSymbol('true')
+	]
+	try:
+		sub_symbols += deepcopy(subtype_table[symbol.symbol].symbols)
+	except:
+		pass
+	return SymbolList([TrellusSymbol('list')]+sub_symbols)
 
 subtype_table = {
 	'boolean': SymbolList([TrellusSymbol('true'), TrellusSymbol('false')])
@@ -47,14 +68,17 @@ def subtype(symbol, type_symbol):
 	# The 'symbol' symbol has all symbols as a subtype
 	if type_symbol == TrellusSymbol('symbol'):
 		return TrellusSymbol('true')
+	# Symbols are a subtype of themselves
+	if symbol == type_symbol:
+		return TrellusSymbol('true')
 	# If the symbol is in the subtypes table
 	elif symbol in subtype_table.get(str(type_symbol), SymbolList([])).symbols:
 		return TrellusSymbol('true')
 	# If the symbols are both lists of symbols
-	elif type(symbol) == SymbolList and type(type_subsymbol) == SymbolList:
+	elif type(symbol) == SymbolList and type(type_symbol) == SymbolList:
 		if len(symbol.symbols) == len(type_symbol.symbols):
 			# See if each subsymbol of the symbol is a subtype of each subsymbol of the type
-			if all(subtype(sub_symbol, type_subsymbol) == TrellusSymbol('true') for sub_symbol, type_sub_symbol in zip(symbol.symbols, type_symbol.symbols)):
+			if all(subtype(sub_symbol, type_sub_symbol) == TrellusSymbol('true') for sub_symbol, type_sub_symbol in zip(symbol.symbols, type_symbol.symbols)):
 				return TrellusSymbol('true')
 			else:
 				return TrellusSymbol('false')
@@ -64,7 +88,7 @@ def subtype(symbol, type_symbol):
 	elif type(symbol) == TrellusSymbol:
 		# The symbol is a literal
 		try:
-			literal = eval(symbol.symbol)
+			literal = __builtins__.eval(symbol.symbol)
 		# The symbol is not a literal
 		except:
 			return TrellusSymbol('false')

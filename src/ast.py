@@ -15,6 +15,9 @@ class SymbolList():
 		else:
 			return self
 
+	def __hash__(self):
+		return hash(repr(self))
+
 	def __repr__(self):
 		return '(' + ' '.join(str(symbol) for symbol in self.symbols) + ')'
 
@@ -47,6 +50,9 @@ class TrellusSymbol():
 			return self.symbol == other.symbol
 		else:
 			return False
+
+	def __hash__(self):
+		return hash(repr(self))
 
 	def __repr__(self):
 		return repr(self.symbol)
