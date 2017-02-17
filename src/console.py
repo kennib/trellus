@@ -89,6 +89,15 @@ class TrellusConsole():
 
 					# Change selection
 					self.selection = self.selection_parents[-1].symbols[self.selection_index[-1]]
+			elif choice == ord('u'):
+				# Apply a function
+				self.selection = self.use_symbol(self.selection)
+
+				# Replace symbol with its evaluation
+				if len(self.selection_parents) > 0:
+					self.selection_parents[-1].symbols[self.selection_index[-1]] = self.selection
+				else:
+					self.symbol = self.selection
 
 	def init_windows(self):
 		# Create two windows, one for displaying values and one for displaying choices
@@ -107,7 +116,7 @@ class TrellusConsole():
 
 		# Display window controls
 		if controls:
-			options = ['(Enter) Evaluate', '(↓) Selected first child symbol', '(←/→) Select sibling symbol', '(↑) Select parent symbol']
+			options = ['(Enter) Evaluate', '(↓) Selected first child symbol', '(←/→) Select sibling symbol', '(↑) Select parent symbol', '(u) use symbol']
 			column = 2
 			for option in options:
 				self.display_window.addstr(self.window_height - 1, column, option)
@@ -199,6 +208,34 @@ class TrellusConsole():
 		curses.noecho()
 
 		return TrellusSymbol(repr(string))
+
+	def use_symbol(self, symbol):
+		# Update symbol display
+		self.display(controls=False)
+
+		# Clear choices display
+		self.choices_window.clear()
+
+		# Output directive
+		self.choices_window.addstr(1, 2, 'Choose a use of the symbol')
+
+		# Output options
+		function_symbols = self.symbol_table[self.symbol_table['uses']](symbol).symbols[1:]
+		for index, function_symbol in enumerate(function_symbols):
+			self.choices_window.addstr(2+index, 2, str(index) + " - " + str(function_symbol))
+
+		# Get input
+		self.choices_window.refresh()
+		choice = self.choices_window.getch()
+
+		# Process input
+		if choice in [ord(str(i)) for i in range(10)]:
+			index = int(chr(choice))
+			if index < len(function_symbols):
+				return function_symbols[index]
+
+		# If no choice, then return the original symbol
+		return symbol
 
 	def close(self):
 		# Return to normal terminal

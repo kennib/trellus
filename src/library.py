@@ -8,6 +8,8 @@ def library(console=None):
 		'eval': SymbolList([TrellusSymbol('eval'), TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
 		'evals': SymbolList([TrellusSymbol('evals'), TrellusSymbol('symbol')]),
 		'subtypes': SymbolList([TrellusSymbol('subtypes'), TrellusSymbol('symbol')]),
+		'usable': SymbolList([TrellusSymbol('usable'), TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
+		'uses': SymbolList([TrellusSymbol('uses'), TrellusSymbol('symbol')]),
 		'publish': SymbolList([TrellusSymbol('publish'), TrellusSymbol('symbol')]),
 		'fetch': SymbolList([TrellusSymbol('fetch'), TrellusSymbol('symbol')]),
 		'subtype': SymbolList([TrellusSymbol('subtype'), TrellusSymbol('symbol'), TrellusSymbol('symbol')]),
@@ -16,7 +18,9 @@ def library(console=None):
 	if console:
 		symbol_table[symbol_table['evals']] = lambda symbol: evals(console.symbol_table, symbol)
 		symbol_table[symbol_table['subtypes']] = lambda symbol: subtypes(console.symbol_table, symbol)
+		symbol_table[symbol_table['uses']] = lambda symbol: uses(console.symbol_table, symbol)
 		symbol_table[TrellusSymbol('symbol')] = lambda symbol: console.get_symbol(symbol)
+		symbol_table[TrellusSymbol('symbol-list')] = lambda symbol: console.get_symbol(symbol)
 		symbol_table[TrellusSymbol('boolean')] = lambda symbol: console.get_symbol(symbol)
 		symbol_table[TrellusSymbol('string')] = lambda symbol: console.get_string(symbol)
 
@@ -27,9 +31,11 @@ def library(console=None):
 	if console is None:
 		symbol_table[symbol_table['evals']] = lambda symbol: (symbol_table, symbol)
 		symbol_table[symbol_table['subtypes']] = lambda symbol: subtypes(symbol_table, symbol)
+		symbol_table[symbol_table['uses']] = lambda symbol: containers(symbol_table, symbol)
 
 	symbol_table[symbol_table['eval']] = lambda definition, *symbols: eval(definition, *symbols)
 	symbol_table[symbol_table['subtype']] = lambda symbol, type_symbol: subtype(symbol, type_symbol)
+	symbol_table[symbol_table['usable']] = usable
 
 	return symbol_table
 
@@ -68,6 +74,9 @@ def subtype(symbol, type_symbol):
 	# The 'symbol' symbol has all symbols as a subtype
 	if type_symbol == TrellusSymbol('symbol'):
 		return TrellusSymbol('true')
+	# The 'symbol-list' symbol has all symbol lists as a subtype
+	if type_symbol == TrellusSymbol('symbol-list') and type(symbol) == SymbolList:
+		return TrellusSymbol('true')
 	# Symbols are a subtype of themselves
 	if symbol == type_symbol:
 		return TrellusSymbol('true')
@@ -101,3 +110,27 @@ def subtype(symbol, type_symbol):
 	# Can't possibly match
 	else:
 		return TrellusSymbol('false')
+
+def usable(symbol, function_symbol):
+	if type(function_symbol) is TrellusSymbol:
+		if subtype(symbol, function_symbol) == TrellusSymbol('true'):
+			return TrellusSymbol('true')
+		else:
+			return TrellusSymbol('false')
+	elif type(function_symbol) is SymbolList:
+		if any(subtype(symbol, sub_symbol) == TrellusSymbol('true') for sub_symbol in function_symbol.symbols):
+			return TrellusSymbol('true')
+		else:
+			return TrellusSymbol('false')
+	else:
+		return TrellusSymbol('false')
+
+def uses(symbol_table, symbol):
+	# Get definitions and substitute in the given symbol
+	uses = [
+		SymbolList(deepcopy([symbol if subtype(symbol, definition_symbol) == TrellusSymbol('true') else definition_symbol for definition_symbol in definition.symbols]))
+		for type_symbol, definition in symbol_table.items()
+		if usable(symbol, definition) == TrellusSymbol('true')
+	]
+
+	return SymbolList([TrellusSymbol('list')]+uses)
