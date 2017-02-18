@@ -61,13 +61,13 @@ def subtypes(symbol_table, symbol):
 		and subtype(sub_symbol, symbol) == TrellusSymbol('true')
 	]
 	try:
-		sub_symbols += deepcopy(subtype_table[symbol.symbol].symbols)
+		sub_symbols += deepcopy(subtype_table[symbol].symbols)
 	except:
 		pass
 	return SymbolList([TrellusSymbol('list')]+sub_symbols)
 
 subtype_table = {
-	'boolean': SymbolList([TrellusSymbol('true'), TrellusSymbol('false')])
+	TrellusSymbol('boolean'): SymbolList([TrellusSymbol('true'), TrellusSymbol('false')]),
 }
 
 def subtype(symbol, type_symbol):
@@ -81,7 +81,7 @@ def subtype(symbol, type_symbol):
 	if symbol == type_symbol:
 		return TrellusSymbol('true')
 	# If the symbol is in the subtypes table
-	elif symbol in subtype_table.get(str(type_symbol), SymbolList([])).symbols:
+	elif symbol in subtype_table.get(type_symbol, SymbolList([])).symbols:
 		return TrellusSymbol('true')
 	# If the symbols are both lists of symbols
 	elif type(symbol) == SymbolList and type(type_symbol) == SymbolList:
