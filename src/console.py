@@ -50,16 +50,35 @@ class TrellusConsole():
 
 			# Listen for controls
 			choice = self.screen.getch()
-			if choice == curses.KEY_ENTER or choice == ord('\n'):
-				# Evaluate the symbol
-				self.selection = self.get_symbol(self.selection)
+			if choice in map(ord, 'seu'):
+				if choice == ord('e'):
+					# Get evaluation symbols
+					symbols = self.symbol_table[self.symbol_table['evals']](self.selection).symbols[1:]
+				elif choice == ord('u'):
+					# Get symbols this symbol can be used in
+					symbols = self.symbol_table[self.symbol_table['uses']](self.selection).symbols[1:]
+				elif choice == ord('s'):
+					# Get subtype symbols
+					symbols = self.symbol_table[self.symbol_table['subtypes']](self.selection).symbols[1:]
 
-				# Replace symbol with its evaluation
-				if len(self.selection_parents) > 0:
-					self.selection_parents[-1].symbols[self.selection_index[-1]] = self.selection
-				else:
-					self.symbol = self.selection
+				# Choose the symbol
+				symbol = self.choose_symbol(symbols)
 
+				if symbol:
+					if choice == ord('e'):
+						# Evaluate the symbol
+						type_symbol, definition = symbol
+						if type(type_symbol) == TrellusSymbol:
+							symbol = self.symbol_table[self.symbol_table['eval']](definition, self.selection)
+						elif type(type_symbol) == SymbolList:
+							symbol = self.symbol_table[self.symbol_table['eval']](definition, *self.selection.symbols[1:])
+
+					# Replace symbol with its evaluation
+					self.selection = symbol
+					if len(self.selection_parents) > 0:
+						self.selection_parents[-1].symbols[self.selection_index[-1]] = symbol
+					else:
+						self.symbol = symbol
 			elif choice == curses.KEY_DOWN:
 				# Select first child symbol
 				if type(self.selection) == SymbolList and len(self.selection.symbols) > 0:
@@ -89,15 +108,6 @@ class TrellusConsole():
 
 					# Change selection
 					self.selection = self.selection_parents[-1].symbols[self.selection_index[-1]]
-			elif choice == ord('u'):
-				# Apply a function
-				self.selection = self.use_symbol(self.selection)
-
-				# Replace symbol with its evaluation
-				if len(self.selection_parents) > 0:
-					self.selection_parents[-1].symbols[self.selection_index[-1]] = self.selection
-				else:
-					self.symbol = self.selection
 
 	def init_windows(self):
 		# Create two windows, one for displaying values and one for displaying choices
@@ -116,7 +126,7 @@ class TrellusConsole():
 
 		# Display window controls
 		if controls:
-			options = ['(Enter) Evaluate', '(↓) Selected first child symbol', '(←/→) Select sibling symbol', '(↑) Select parent symbol', '(u) use symbol']
+			options = ['(↓) Selected first child symbol', '(←/→) Select sibling symbol', '(↑) Select parent symbol', '(u) use symbol', '(e) evaluate symbol', '(s) choose sub symbol']
 			column = 2
 			for option in options:
 				self.display_window.addstr(self.window_height - 1, column, option)
@@ -152,7 +162,7 @@ class TrellusConsole():
 			self.display_window.addstr(2, column, symbol.symbol, color)
 			return row, column + len(symbol.symbol)
 
-	def get_symbol(self, symbol):
+	def choose_symbol(self, symbols):
 		# Update symbol display
 		self.display(controls=False)
 
@@ -160,17 +170,14 @@ class TrellusConsole():
 		self.choices_window.clear()
 
 		# Output directive
-		self.choices_window.addstr(1, 2, 'Choose a symbol')
+		if symbols:
+			self.choices_window.addstr(1, 2, 'Choose a symbol')
+		else:
+			self.choices_window.addstr(1, 2, 'No symbols to choose')
 
 		# Output options
-		eval_symbols = self.symbol_table[self.symbol_table['evals']](symbol).symbols[1:]
-		for index, (type_symbol, definition) in enumerate(eval_symbols):
-			self.choices_window.addstr(2+index, 2, str(index) + " - Evaluate as " + str(type_symbol))
-
-		sub_symbols = self.symbol_table[self.symbol_table['subtypes']](symbol).symbols[1:]
-		for index, sub_symbol in enumerate(sub_symbols):
-			index += len(eval_symbols)
-			self.choices_window.addstr(2+index, 2, str(index) + " - " + str(sub_symbol))
+		for index, symbol in enumerate(symbols):
+			self.choices_window.addstr(2+index, 2, str(index) + " - " + str(symbol))
 
 		# Get input
 		self.choices_window.refresh()
@@ -179,17 +186,8 @@ class TrellusConsole():
 		# Process input
 		if choice in [ord(str(i)) for i in range(10)]:
 			index = int(chr(choice))
-			if index < len(eval_symbols):
-				type_symbol, definition = eval_symbols[index]
-				if type(type_symbol) == TrellusSymbol:
-					return self.symbol_table[self.symbol_table['eval']](definition, symbol)
-				elif type(type_symbol) == SymbolList:
-					return self.symbol_table[self.symbol_table['eval']](definition, *symbol.symbols[1:])
-			elif (index-len(eval_symbols)) < len(sub_symbols):
-				return sub_symbols[index-len(eval_symbols)]
-
-		# If no choice, then return the original symbol
-		return symbol
+			if index < len(symbols):
+				return symbols[index]
 
 	def get_string(self, *args):
 		# Update symbol display
@@ -208,34 +206,6 @@ class TrellusConsole():
 		curses.noecho()
 
 		return TrellusSymbol(repr(string))
-
-	def use_symbol(self, symbol):
-		# Update symbol display
-		self.display(controls=False)
-
-		# Clear choices display
-		self.choices_window.clear()
-
-		# Output directive
-		self.choices_window.addstr(1, 2, 'Choose a use of the symbol')
-
-		# Output options
-		function_symbols = self.symbol_table[self.symbol_table['uses']](symbol).symbols[1:]
-		for index, function_symbol in enumerate(function_symbols):
-			self.choices_window.addstr(2+index, 2, str(index) + " - " + str(function_symbol))
-
-		# Get input
-		self.choices_window.refresh()
-		choice = self.choices_window.getch()
-
-		# Process input
-		if choice in [ord(str(i)) for i in range(10)]:
-			index = int(chr(choice))
-			if index < len(function_symbols):
-				return function_symbols[index]
-
-		# If no choice, then return the original symbol
-		return symbol
 
 	def close(self):
 		# Return to normal terminal

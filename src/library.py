@@ -16,12 +16,13 @@ def library(console=None):
 	}
 
 	if console:
+		get_subsymbol = lambda symbol: console.choose_symbol(console.symbol_table[console.symbol_table['subtypes']](symbol).symbols[1:]) or symbol
 		symbol_table[symbol_table['evals']] = lambda symbol: evals(console.symbol_table, symbol)
 		symbol_table[symbol_table['subtypes']] = lambda symbol: subtypes(console.symbol_table, symbol)
 		symbol_table[symbol_table['uses']] = lambda symbol: uses(console.symbol_table, symbol)
-		symbol_table[TrellusSymbol('symbol')] = lambda symbol: console.get_symbol(symbol)
-		symbol_table[TrellusSymbol('symbol-list')] = lambda symbol: console.get_symbol(symbol)
-		symbol_table[TrellusSymbol('boolean')] = lambda symbol: console.get_symbol(symbol)
+		symbol_table[TrellusSymbol('symbol')] = get_subsymbol
+		symbol_table[TrellusSymbol('symbol-list')] = get_subsymbol
+		symbol_table[TrellusSymbol('boolean')] = get_subsymbol
 		symbol_table[TrellusSymbol('string')] = lambda symbol: console.get_string(symbol)
 
 	if console.server:
